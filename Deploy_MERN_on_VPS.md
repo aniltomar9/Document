@@ -37,6 +37,25 @@ Install Node.js and npm ( if not pre-installed)
 ```bash
   sudo apt-get install -y nodejs
 ```
+
+# Install NVM
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
+
+# Source NVM script to add it to the current shell session
+export NVM_DIR="$([ -z "${XDG_CONFIG_HOME-}" ] && printf %s "${HOME}/.nvm" || printf %s "${XDG_CONFIG_HOME}/nvm")"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
+# Install Node.js using NVM
+nvm install 20
+nvm use 20
+nvm alias default 20
+
+# Verify installation
+node -v
+npm -v
+
+
+
 Install Git 
 ```bash
   sudo apt install -y git
