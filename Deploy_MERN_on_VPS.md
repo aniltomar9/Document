@@ -107,7 +107,13 @@ If firewall is disable then enable it using
  sudo ufw allow 'OpenSSH'
 ```
 ```bash
- sudo ufw allow 4000
+ sudo ufw allow 8000
+```
+```bash
+ sudo ufw allow 3000
+```
+```bash
+ sudo ufw allow 50001
 ```
 
 ### 4. Deploying the React Frontends
@@ -152,18 +158,41 @@ Configure Nginx for React Frontends
 
 
 ```bash
- nano /etc/nginx/sites-available/yourdomain1.com.conf
+ nano /etc/nginx/sites-available/default
 ```
 
 ```bash
- server {
-    listen 80;
-    server_name yourdomain1.com www.yourdomain1.com;
+server {
+    server_name yourdomain.com;
 
     location / {
-        root /var/www/your-repo/frontend/dist;
-        try_files $uri /index.html;
+        proxy_pass http://localhost:3000;  # Point to your server
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
     }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+server {
+    if ($host = yourdomain.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name yourdomain.com;
+    return 404; # managed by Certbot
+
+
 }
 ```
 Save and exit (Ctrl + X, then Y and Enter).
@@ -171,29 +200,52 @@ Save and exit (Ctrl + X, then Y and Enter).
 Create a similar file for the second or multiple React app.
 
 ```bash
- nano /etc/nginx/sites-available/yourdomain2.com.conf
+ nano /etc/nginx/sites-available/admin.yourdomain
 ```
 
 ```bash
 server {
-    listen 80;
-    server_name yourdomain2.com www.yourdomain2.com;
+    server_name admin.yourdomain.com;
 
     location / {
-        root /var/www/react-app-2/dist;
-        try_files $uri /index.html;
+        proxy_pass http://localhost:8000;  # Point to your admin server
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
     }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+server {
+    if ($host = admin.yourdomain.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name admin.yourdomain.com;
+    return 404; # managed by Certbot
+
+
 }
 ```
 
 Create symbolic links to enable the sites.
 
 ```bash
-ln -s /etc/nginx/sites-available/yourdomain1.com.conf /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
 ```
 
 ```bash
-ln -s /etc/nginx/sites-available/yourdomain2.com.conf /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/admin.yourdomain /etc/nginx/sites-enabled/
 ```
 
 Test the Nginx configuration for syntax errors.
@@ -211,27 +263,48 @@ systemctl restart nginx
 Update Backend Nginx Configuration
 
 ```bash
-nano /etc/nginx/sites-available/api.yourdomain.com.conf
+nano /etc/nginx/sites-available/api.yourdomain
 ```
 ```bash
 server {
+    if ($host = api.yourdomain.com) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
     listen 80;
     server_name api.yourdomain.com;
 
-    location / {
-        proxy_pass http://localhost:4000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
+    # Redirect HTTP to HTTPS
+    return 301 https://$host$request_uri;
+
+
 }
+
+server {
+    listen 443 ssl;
+    server_name api.yourdomain.com;
+    ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem; # managed by Certbot
+
+
+    location / {
+        proxy_pass http://localhost:50001;  # Ensure the backend is still running locally on port 50001
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+}
+
 ```
 
 Create symbolic links to enable the sites.
 
 ```bash
-ln -s /etc/nginx/sites-available/api.yourdomain.com.conf /etc/nginx/sites-enabled/
+ln -s /etc/nginx/sites-available/api.yourdomain /etc/nginx/sites-enabled/
 ```
 
 Restart nginx
@@ -257,7 +330,7 @@ sudo apt install -y certbot python3-certbot-nginx
 Obtain SSL Certificates
 
 ```bash
-certbot --nginx -d yourdomain1.com -d www.yourdomain1.com -d yourdomain2.com -d api.yourdomain.com
+certbot --nginx -d yourdomain.com -d www.yourdomain.com -d yourdomain.com -d api.yourdomain.com
 ```
 
 Verify Auto-Renewal
