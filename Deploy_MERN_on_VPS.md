@@ -37,7 +37,7 @@ Install Node.js and npm ( if not pre-installed)
   sudo apt-get install -y nodejs
 ```
 
- Install NVM
+ Install NVM (Optional)
 
 ```bash
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.4/install.sh | bash
